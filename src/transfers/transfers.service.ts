@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma } from '../generated/prisma/client';
-import { AppError } from '../common/http-error';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateTransferDto } from './dto/create-transfer.dto';
+import { Prisma } from '../generated/prisma/client.js';
+import { AppError } from '../common/http-error.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { CreateTransferDto } from './dto/create-transfer.dto.js';
 
 type TransferSuccess = {
   success: true;

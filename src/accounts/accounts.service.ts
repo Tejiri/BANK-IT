@@ -1,9 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { randomInt } from 'crypto';
-import { Prisma } from '../generated/prisma/client';
-import { AppError } from '../common/http-error';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateAccountDto } from './dto/create-account.dto';
+import { Prisma } from '../generated/prisma/client.js';
+import { AppError } from '../common/http-error.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { CreateAccountDto } from './dto/create-account.dto.js';
 
 @Injectable()
 export class AccountsService {

@@ -1,8 +1,8 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma } from '../generated/prisma/client';
-import { AppError } from '../common/http-error';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Prisma } from '../generated/prisma/client.js';
+import { AppError } from '../common/http-error.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { CreateUserDto } from './dto/create-user.dto.js';
 
 @Injectable()
 export class UsersService {

@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { HttpStatus, ValidationError, ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
-import { AppError, AppErrorFilter } from './common/http-error';
+import { AppModule } from './app.module.js';
+import { AppError, AppErrorFilter } from './common/http-error.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

@@ -9,9 +9,9 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { AccountsService } from './accounts.service';
-import { CreateAccountDto } from './dto/create-account.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { AccountsService } from './accounts.service.js';
+import { CreateAccountDto } from './dto/create-account.dto.js';
+import { PaginationQueryDto } from './dto/pagination-query.dto.js';
 
 @Controller('accounts')
 export class AccountsController {

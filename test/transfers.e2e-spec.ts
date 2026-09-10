@@ -3,10 +3,10 @@ import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
-import { AppError, AppErrorFilter } from '../src/common/http-error';
-import { PrismaService } from '../src/prisma/prisma.service';
-import { Prisma } from '../src/generated/prisma/client';
+import { AppModule } from '../src/app.module.js';
+import { AppError, AppErrorFilter } from '../src/common/http-error.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+import { Prisma } from '../src/generated/prisma/client.js';
 
 describe('Transfers (e2e)', () => {
   let app: INestApplication<App>;

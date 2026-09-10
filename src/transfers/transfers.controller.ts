@@ -8,8 +8,8 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import { CreateTransferDto } from './dto/create-transfer.dto';
-import { TransfersService } from './transfers.service';
+import { CreateTransferDto } from './dto/create-transfer.dto.js';
+import { TransfersService } from './transfers.service.js';
 
 @Controller('transfers')
 export class TransfersController {
