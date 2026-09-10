@@ -7,7 +7,7 @@ COPY prisma7.config.ts ./
 RUN npm ci
 
 COPY . .
-RUN npx prisma generate && npm run build
+RUN npx prisma generate && npm run build && test -f dist/main.js
 
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

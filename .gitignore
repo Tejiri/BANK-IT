@@ -1,8 +1,8 @@
 node_modules
 dist
+*.tsbuildinfo
 coverage
 .env
-src/generated
 .claude
 .windsurf
 .agents

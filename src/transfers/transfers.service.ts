@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma } from '../generated/prisma/client.js';
+import { Decimal } from '@prisma/client/runtime/client';
 import { AppError } from '../common/http-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateTransferDto } from './dto/create-transfer.dto.js';
@@ -9,6 +9,67 @@ type TransferSuccess = {
   success: true;
   reference: string;
   status: 'SUCCESS';
+};
+
+type AccountRow = {
+  id: string;
+  balance: Decimal;
+  currency: string;
+};
+
+type TransferRow = {
+  reference: string;
+  senderAccountId: string;
+  recipientAccountId: string;
+  amount: Decimal;
+  currency: string;
+  status: string;
+  createdAt: Date;
+};
+
+type SqlTag = {
+  <T = unknown>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<T>;
+};
+
+type TransferTx = {
+  $queryRaw: SqlTag;
+  $executeRaw: SqlTag;
+  account: {
+    findUnique: (args: { where: { id: string } }) => Promise<AccountRow | null>;
+  };
+  transaction: {
+    create: (args: {
+      data: {
+        reference: string;
+        senderAccountId: string;
+        recipientAccountId: string;
+        amount: Decimal;
+        currency: string;
+        status: string;
+      };
+    }) => Promise<unknown>;
+  };
+  idempotencyKey: {
+    update: (args: {
+      where: { key: string };
+      data: { responseBody: TransferSuccess };
+    }) => Promise<unknown>;
+  };
+};
+
+type TransfersDb = {
+  $transaction: (
+    fn: (tx: TransferTx) => Promise<TransferSuccess>,
+    options?: { timeout: number },
+  ) => Promise<TransferSuccess>;
+  transaction: {
+    findUnique: (args: {
+      where: { reference: string };
+    }) => Promise<TransferRow | null>;
+  };
 };
 
 @Injectable()
@@ -31,8 +92,8 @@ export class TransfersService {
     const requestHash = hashRequest(dto, amount);
 
     try {
-      const result: TransferSuccess = await this.prisma.$transaction(
-        async (tx: Prisma.TransactionClient): Promise<TransferSuccess> => {
+      const result = await this.db().$transaction(
+        async (tx) => {
           if (idempotencyKey) {
             const replay = await this.claimIdempotencyKey(
               tx,
@@ -147,7 +208,7 @@ export class TransfersService {
   }
 
   async findByReference(reference: string) {
-    const transfer = await this.prisma.transaction.findUnique({
+    const transfer = await this.db().transaction.findUnique({
       where: { reference },
     });
 
@@ -170,8 +231,12 @@ export class TransfersService {
     };
   }
 
+  private db(): TransfersDb {
+    return asTransfersDb(this.prisma);
+  }
+
   private async claimIdempotencyKey(
-    tx: Prisma.TransactionClient,
+    tx: TransferTx,
     key: string,
     requestHash: string,
   ): Promise<TransferSuccess | null> {
@@ -215,7 +280,11 @@ export class TransfersService {
   }
 }
 
-function parseAmount(value: unknown): Prisma.Decimal {
+function asTransfersDb(value: unknown): TransfersDb {
+  return value as TransfersDb;
+}
+
+function parseAmount(value: unknown): Decimal {
   if (typeof value !== 'string' && typeof value !== 'number') {
     throw new AppError(
       'INVALID_REQUEST',
@@ -233,7 +302,7 @@ function parseAmount(value: unknown): Prisma.Decimal {
     );
   }
 
-  const amount = new Prisma.Decimal(asString);
+  const amount = new Decimal(asString);
   if (amount.lte(0)) {
     throw new AppError(
       'INVALID_REQUEST',
@@ -245,7 +314,7 @@ function parseAmount(value: unknown): Prisma.Decimal {
   return amount;
 }
 
-function hashRequest(dto: CreateTransferDto, amount: Prisma.Decimal) {
+function hashRequest(dto: CreateTransferDto, amount: Decimal) {
   return createHash('sha256')
     .update(
       JSON.stringify({

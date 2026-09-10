@@ -1,16 +1,70 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/client';
 import { randomInt } from 'crypto';
-import { Prisma } from '../generated/prisma/client.js';
 import { AppError } from '../common/http-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateAccountDto } from './dto/create-account.dto.js';
+
+type AccountRow = {
+  id: string;
+  userId: string;
+  accountNumber: string;
+  balance: Decimal;
+  currency: string;
+  createdAt: Date;
+};
+
+type TransactionRow = {
+  reference: string;
+  senderAccountId: string;
+  recipientAccountId: string;
+  amount: Decimal;
+  currency: string;
+  status: string;
+  createdAt: Date;
+};
+
+type TransactionWhere = {
+  OR: Array<{ senderAccountId: string } | { recipientAccountId: string }>;
+};
+
+type AccountsDb = {
+  user: {
+    findUnique: (args: {
+      where: { id: string };
+    }) => Promise<{ id: string } | null>;
+  };
+  account: {
+    findUnique: (args: { where: { id: string } }) => Promise<AccountRow | null>;
+    findMany: (args: {
+      orderBy: { createdAt: 'desc' };
+    }) => Promise<AccountRow[]>;
+    create: (args: {
+      data: {
+        userId: string;
+        accountNumber: string;
+        balance: Decimal;
+        currency: string;
+      };
+    }) => Promise<AccountRow>;
+  };
+  transaction: {
+    count: (args: { where: TransactionWhere }) => Promise<number>;
+    findMany: (args: {
+      where: TransactionWhere;
+      orderBy: { createdAt: 'desc' };
+      skip: number;
+      take: number;
+    }) => Promise<TransactionRow[]>;
+  };
+};
 
 @Injectable()
 export class AccountsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateAccountDto) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.db().user.findUnique({
       where: { id: dto.userId },
     });
 
@@ -22,7 +76,7 @@ export class AccountsService {
       );
     }
 
-    const account = await this.prisma.account.create({
+    const account = await this.db().account.create({
       data: {
         userId: user.id,
         accountNumber: this.newAccountNumber(),
@@ -35,7 +89,7 @@ export class AccountsService {
   }
 
   async findAll() {
-    const accounts = await this.prisma.account.findMany({
+    const accounts = await this.db().account.findMany({
       orderBy: { createdAt: 'desc' },
     });
     return accounts.map((account) => this.toResponse(account));
@@ -57,13 +111,13 @@ export class AccountsService {
   async getTransactions(accountId: string, page: number, limit: number) {
     await this.requireAccount(accountId);
 
-    const where = {
+    const where: TransactionWhere = {
       OR: [{ senderAccountId: accountId }, { recipientAccountId: accountId }],
     };
 
     const [total, rows] = await Promise.all([
-      this.prisma.transaction.count({ where }),
-      this.prisma.transaction.findMany({
+      this.db().transaction.count({ where }),
+      this.db().transaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -87,8 +141,12 @@ export class AccountsService {
     };
   }
 
-  private async requireAccount(accountId: string) {
-    const account = await this.prisma.account.findUnique({
+  private db(): AccountsDb {
+    return asAccountsDb(this.prisma);
+  }
+
+  private async requireAccount(accountId: string): Promise<AccountRow> {
+    const account = await this.db().account.findUnique({
       where: { id: accountId },
     });
 
@@ -107,14 +165,7 @@ export class AccountsService {
     return `10${String(randomInt(0, 1_000_000_000)).padStart(8, '0')}`;
   }
 
-  private toResponse(account: {
-    id: string;
-    userId: string;
-    accountNumber: string;
-    balance: Prisma.Decimal;
-    currency: string;
-    createdAt: Date;
-  }) {
+  private toResponse(account: AccountRow) {
     return {
       id: account.id,
       userId: account.userId,
@@ -126,7 +177,11 @@ export class AccountsService {
   }
 }
 
-function parseMoney(value: unknown, field: string): Prisma.Decimal {
+function asAccountsDb(value: unknown): AccountsDb {
+  return value as AccountsDb;
+}
+
+function parseMoney(value: unknown, field: string): Decimal {
   if (typeof value !== 'string' && typeof value !== 'number') {
     throw new AppError(
       'INVALID_REQUEST',
@@ -144,5 +199,5 @@ function parseMoney(value: unknown, field: string): Prisma.Decimal {
     );
   }
 
-  return new Prisma.Decimal(asString);
+  return new Decimal(asString);
 }

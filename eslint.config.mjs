@@ -25,13 +25,6 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/generated/**/*.ts'],
-    ...tseslint.configs.disableTypeChecked,
-    rules: {
-      'prettier/prettier': 'off',
-    },
-  },
-  {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
