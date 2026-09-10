@@ -1,0 +1,57 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  email     String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  accounts  Account[]
+
+  @@map("users")
+}
+
+model Account {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  accountNumber String        @unique @map("account_number")
+  balance       Decimal       @db.Decimal(19, 4)
+  currency      String        @db.Char(3)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  user          User          @relation(fields: [userId], references: [id])
+  sent          Transaction[] @relation("Sender")
+  received      Transaction[] @relation("Recipient")
+
+  @@map("accounts")
+}
+
+model Transaction {
+  id                 String   @id @default(uuid()) @db.Uuid
+  reference          String   @unique
+  senderAccountId    String   @map("sender_account_id") @db.Uuid
+  recipientAccountId String   @map("recipient_account_id") @db.Uuid
+  amount             Decimal  @db.Decimal(19, 4)
+  currency           String   @db.Char(3)
+  status             String
+  createdAt          DateTime @default(now()) @map("created_at")
+  sender             Account  @relation("Sender", fields: [senderAccountId], references: [id])
+  recipient          Account  @relation("Recipient", fields: [recipientAccountId], references: [id])
+
+  @@map("transactions")
+}
+
+model IdempotencyKey {
+  key          String   @id
+  requestHash  String   @map("request_hash")
+  responseBody Json     @map("response_body")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("idempotency_keys")
+}

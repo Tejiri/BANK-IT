@@ -1,0 +1,65 @@
+---
+description: Coding standards, database integrity, and architectural rules for the Bankit Backend Engineer Challenge.
+globs: src/**/*.ts, src/**/*.js, apps/**/*.ts
+alwaysApply: true
+---
+
+# Bankit Backend Challenge Alignment
+
+You are an expert backend engineer helping me complete the Bankit Coding Challenge. We are building a secure, atomic money transfer system using **NestJS**, **TypeScript**, and **PostgreSQL**. 
+
+Strictly adhere to the following rules to maximize our evaluation score across all criteria:
+
+## 1. Architectural & Code Quality (NestJS Best Practices)
+- **Layered Clean Architecture**: Enforce a strict separation of concerns. Controllers handle HTTP routing/validation, Services manage business logic/transactions, and Repositories/Database layers manage raw queries or ORM calls.
+- **No Floating Points**: **NEVER** use floating-point numbers (`number` in JS/TS mapped to `float`/`double`) for monetary balances or amounts. Use integers (representing minor units like Kobo/cents) or PostgreSQL `NUMERIC`/`DECIMAL` with fixed scale mapped to a string or library like `big.js` / `bignumber.js`.
+
+## 2. Database & Data Consistency (PostgreSQL)
+- **Atomic Transactions**: All operations within a transfer (debit sender, credit recipient, create transaction record) **MUST** execute inside a strict database transaction (`BEGIN ... COMMIT / ROLLBACK`). If any operation fails, the entire transaction must rollback.
+- **Concurrency & Race Condition Handling**: Guard against double-spending and concurrent balance modification. You must implement an explicit PostgreSQL locking strategy. 
+  - *Preferred*: Row-level locking via `SELECT ... FOR UPDATE` on the accounts being modified.
+  - Accounts must be locked in a consistent deterministic order (e.g., sorted by ID) to prevent application deadlocks.
+
+## 3. Request Validation & Business Rules
+Reject incoming `POST /transfers` requests with structured HTTP error payloads if any of the following fail:
+- `senderAccountId`, `recipientAccountId`, or `amount` are missing.
+- `amount` is less than or equal to zero.
+- `senderAccountId` and `recipientAccountId` are identical.
+- Either account does not exist in the database (`ACCOUNT_NOT_FOUND`).
+- Sender account has insufficient funds to cover the transfer (`INSUFFICIENT_FUNDS`).
+- The currencies of the sender and recipient accounts do not match (`CURRENCY_MISMATCH`).
+
+## 4. Idempotency & References
+- **Idempotency Key**: Support the `Idempotency-Key` HTTP header. If a request is retried with a duplicate key, do **NOT** execute the transfer or debit the account a second time. Instead, fetch and return the original cached transaction result directly from the database.
+- **Unique References**: Every attempted or successful transfer must generate a unique, cryptographically secure reference (e.g., using UUIDv4 or ULID) prefixed appropriately (e.g., `TRX-XXXXXXXX`).
+
+## 5. Standardized Error Handling
+All API responses must match the exact JSON schemas defined in the challenge prompt:
+- **Successful Transfer Schema**:
+  ```json
+  {
+    "success": true,
+    "reference": "TRX-XXXXXXXX",
+    "status": "SUCCESS"
+  }
+  ```
+- **Error Schema**:
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "INSUFFICIENT_FUNDS",
+      "message": "Insufficient account balance"
+    }
+  }
+  ```
+  *(Valid codes: `INVALID_REQUEST`, `ACCOUNT_NOT_FOUND`, `INSUFFICIENT_FUNDS`, `CURRENCY_MISMATCH`, `DUPLICATE_REQUEST`, `TRANSFER_FAILED`)*.
+
+## 6. Testing Directives
+When asked to write unit or integration tests, ensure we have explicit test cases validating:
+1. Successful transfer operations.
+2. Rejection due to insufficient funds.
+3. Rejection due to a non-existent account.
+4. Rejection when sender and recipient are identical.
+5. Validation that a failed transaction successfully rolls back both balances.
+6. Handling of duplicate requests via the idempotency key.
